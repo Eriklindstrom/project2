@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Project 2 Visualization</title>
+    <link rel="stylesheet"><!-- href="normalize.css">-->
+    <script src="https://code.jquery.com/jquery-2.0.0.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    <style>
+        body {
+            font-family: Helvetica, Arial, Sans-Serif;
+        }
+        #map {
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+        #chartinfo{
+            background-color:#D3DFEC;
+			font-size: 20px;
+        }
+        #btns{
+            background-color:#D3DFEC;
+            display: flex;
+            justify-content: center;
+        }
+        .background {
+            fill: none;
+            pointer-events: all;
+        }
+        #countries, #states {
+           fill: #cde;
+           stroke: #fff;
+           stroke-linejoin: round;
+           stroke-linecap: round;
+        }
+        #countries .active, #states .active {
+            fill: #89a;
+        }
+        #cities {
+            stroke-width: 0;
+        }
+        .city {
+            fill: #345;
+            stroke: #fff;
+        }
+        pre.prettyprint {
+            border: 1px solid #ccc;
+            margin-bottom: 0;
+            padding: 9.5px;
+        }
+        #title {
+            font-size: 10px;
+        }
+        #country {
+            font-size: 32px;
+        }
+        .legend {
+            font-size: 12px;
+        }
+        rect {
+            stroke-width: 2;
+        }
+      </style>
+    </head>
+    <body>
+        <div class="col-xl-12 text-center">
+            <div id="btns" class="h-100 row align-items-center" style="display:none">
+                <button type="button" class="btn btn-info" id="backbtn" onclick="bringBackTheMapBois()">Back</button>
+				<button type="button" class="btn btn-primary" onclick="changeWave('1995-1999')">1995-1999</button>
+			    <button type="button" class="btn btn-primary" onclick="changeWave('2000-2004')">2000-2004</button>
+			    <button type="button" class="btn btn-primary" onclick="changeWave('2005-2009')">2005-2009</button>
+			    <button type="button" class="btn btn-primary" onclick="changeWave('2010-2014')">2010-2014</button>
+      		</div>
+      	</div>
+		<div id="map" style="display:block"></div>
+      	<div id="chartinfo" style="display:none">
+          <div class="container" id ="data">
+              <div class="row">
+                  <div id="country" class="col-xl-12 text-center"></div>
+
+                  <div id="title1" class="col-sm-4 text-center"></div>
+                  <div id="title2" class="col-sm-4 text-center"></div>
+                  <div id="title3" class="col-sm-4 text-center"></div>
+
+                  <div id="chart1" class="col-sm-4 text-center" style="font-style: italic"></div>
+                  <div id="chart2" class="col-sm-4 text-center" style="font-style: italic"></div>
+                  <div id="chart3" class="col-sm-4 text-center" style="font-style: italic"></div>
+
+                  <div class="col-sm-2"></div>
+                  <div id="title4" class="col-sm-4 text-center"></div>
+                  <div id="title5" class="col-sm-6 text-left"></div>
+
+                  <div class="col-sm-2"></div>
+                  <div id="chart4" class="col-sm-4 text-center" style="font-style: italic"></div>
+                  <div id="chart5" class="col-sm-4 text-center" style="font-style: italic"></div>
+                  <div class="col-sm-2"></div>
+
+                  <div id="title6" class="col-sm-12 text-justify"></div>
+                  <div id="chart6" class="col-sm-6 text-justify" style="font-style: italic"></div>
+
+                  <div id="title7" class="col-sm-12 text-justify"></div>
+                  <div id="chart7" class="col-sm-6 text-justify" style="font-style: italic"></div>
+
+                  <div id="title8" class="col-sm-12 text-justify"></div>
+                  <div id="chart8" class="col-sm-6 text-justify" style="font-style: italic"></div>
+			  </div>
+			</div>
+		</div>
+
+		<script src="https://d3js.org/topojson.v1.min.js"></script>
+   		<script src="https://d3js.org/d3.v4.min.js"></script>
+   	<script>
+        
+    var selected_country = "Algeria";
+    var selected_wave = "2010-2014";
+    updateData();
+    updateMap();
+        
+    function changeWave(wave) {
+        selected_wave = wave;
+        //d3.select("#map").attr("style","display:none");
+        updateData();
+        //updateMap(); 
+    }
+       
+       
+       /*
+       WARNING
+       HERE BE DRAGONS
+       */
+
+       
+    function updateMap(){
+        //d3.select("#map").attr("style","display:block");
+		var m_width = $("#map").width(),
+			width = 938,
+        	height = 500,
+        	country,
+        	state;
+    	var projection = d3.geoMercator()
+			.scale(150)
+        	.translate([width / 2, height / 1.5]);
+    
+    	var path = d3.geoPath()
+        	.projection(projection);
+        
+    	var svg = d3.select("#map").append("svg")
+			.attr("preserveAspectRatio", "xMidYMid")
+			.attr("viewBox", "0 0 " + width + " " + height)
+			.attr("width", m_width)
+			.attr("height", m_width * height / width);
+		svg.append("rect")
+			.attr("class", "background")
+			.attr("width", width)
+			.attr("height", height)
+			.on("click", country_clicked);
+		var g = svg.append("g");
+        
+		var countryData = [["Algeria", "Azerbaijan", "Argentina", "Australia", "Brazil", "China", "Estonia", "Germany", "India", "Iraq", "Japan", "Jordan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Peru", "Poland", "Qatar", "Romania", "Russia", "Rwanda", "Singapore", "South Africa", "Spain", "Sweden", "Thailand", "Turkey", "United States", "Uruguay"],
+		["Argentina", "Australia", "Brazil", "China", "Germany", "India", "Iraq", "Japan", "Jordan", "Malaysia", "Mexico", "Netherlands", "New Zealand", "Peru", "Poland", "Romania", "Russia", "South Africa", "Spain", "Sweden", "Thailand", "Turkey", "United States", "UrugUay"],
+		["Algeria", "Argentina", "China", "India", "Iraq", "Japan", "Jordan", "Mexico", "Peru", "Singapore", "South Africa", "Spain", "Sweden", "Turkey", "United States"],
+		["Argentina", "China", "India", "Japan", "Mexico", "Peru", "South Africa", "Spain", "Sweden", "Turkey", "United States"]]
+
+		d3.json("countries.topo.json", function(error, us) {
+		  g.append("g")
+			.attr("id", "countries")
+			.selectAll("path")
+			.data(topojson.feature(us, us.objects.countries).features)
+			.enter()
+			.append("path")
+			.attr("id", function(d) { return d.id; })
+			.attr("style", function(d){
+			  if(selected_wave == "1994-1999" && countryData[0].includes(d.properties.name) == true) {
+				  //console.log("fill1");
+				  return "fill:blue";
+			  } if(selected_wave == "2000-2004" && countryData[0].includes(d.properties.name) == true) {
+				  //console.log("fill1");
+				  return "fill:blue";
+			  } if(selected_wave == "2005-2009" && countryData[0].includes(d.properties.name) == true) {
+				  //console.log("fill1");
+				  return "fill:blue";
+			  } if(selected_wave == "2010-2014" && countryData[0].includes(d.properties.name) == true) {
+				  //console.log("fill1");
+				  return "fill:blue";
+			  }
+		  })
+			  .attr("d", path)
+			  .on("click", country_clicked);
+		});
+	}
+    function zoom(xyz) {
+		g.transition()
+			.duration(750)
+        	.attr("transform", "translate(" + projection.translate() + ")scale(" + xyz[2] + ")translate(-" + xyz[0] + ",-" + xyz[1] + ")")
+        	.selectAll(["#countries", "#states", "#cities"])
+        	.style("stroke-width", 1.0 / xyz[2] + "px")
+        	.selectAll(".city")
+        	.attr("d", path.pointRadius(20.0 / xyz[2]));
+	}
+    function get_xyz(d) {
+		var bounds = path.bounds(d);
+      	var w_scale = (bounds[1][0] - bounds[0][0]) / width;
+      	var h_scale = (bounds[1][1] - bounds[0][1]) / height;
+      	var z = .96 / Math.max(w_scale, h_scale);
+      	var x = (bounds[1][0] + bounds[0][0]) / 2;
+      	var y = (bounds[1][1] + bounds[0][1]) / 2 + (height / z / 6);
+      	return [x, y, z];
+    }
+    function country_clicked(d) {
+        selected_country = d.properties.name;
+        updateData();
+        document.getElementById("chartinfo").style = 'block';
+        //document.getElementById("map").style = "none"; vrf funkar du inte???
+        d3.select("#map").attr("style","display:none");
+        d3.select("#btns").attr("style","display:block");
+    }
+       
+    function bringBackTheMapBois(){
+        //console.log("backbtn");
+        d3.select("#map").attr("style","display:block");
+        document.getElementById("chartinfo").style = "display:none";
+        d3.select("#btns").attr("style","display:none");
+    }
+    
+
+        /*
+        Yo,
+        My man
+        I'm so sorry for this :(
+        */
+       
+       
+       
+    function updateData() {
+        
+        document.getElementById("country").innerHTML="";
+		
+        document.getElementById("title1").innerHTML = "";
+        document.getElementById("title2").innerHTML = "";
+        document.getElementById("title3").innerHTML = "";
+        document.getElementById("title4").innerHTML = "";
+        document.getElementById("title5").innerHTML = "";
+        document.getElementById("title6").innerHTML = "";
+        document.getElementById("title7").innerHTML = "";
+        document.getElementById("title8").innerHTML = "";
+        
+        document.getElementById("chart1").innerHTML = "";
+        document.getElementById("chart2").innerHTML = "";
+        document.getElementById("chart3").innerHTML = "";
+        document.getElementById("chart4").innerHTML = "";
+        document.getElementById("chart5").innerHTML = "";
+        document.getElementById("chart6").innerHTML = "";
+        document.getElementById("chart7").innerHTML = "";
+        document.getElementById("chart8").innerHTML = "";
+        
+        
+    //Feeling of happiness
+      (function(d3) {
+		  'use strict';
+          var width = 180;
+		  var height = 180;
+          var radius = Math.min(width, height) / 2;
+          var donutWidth = 40;
+          var legendRectSize = 8;
+          var legendSpacing = 2;
+
+          var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+          var svg = d3.select('#chart1')
+		  	.append('svg')
+			.attr('width', width)
+			.attr('height', height)
+			.append('g')
+			.attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+		  var arc = d3.arc()
+          	.innerRadius(radius - donutWidth)
+          	.outerRadius(radius);
+
+          var pie = d3.pie()
+          	.value(function(d) { return d.count; })
+          	.sort(null);
+    
+        d3.csv(selected_wave + "/Feeling_of_happiness.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.very_happy = +d["Very happy"];
+            point.rather_happy = +d["Rather happy"];
+            point.not_very_happy= +d["Not very happy"];
+            point.not_at_all_happy = +d["Not at all happy"];
+            point.htru = +d["HT/RU"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+			var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country); 
+                }
+            }
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart1").html("No data available");
+            }
+                
+            var element = document.getElementById("country");
+            element.append(data.country + " " + selected_wave);
+            var title = document.getElementById("title1");
+            title.append("Feeling of Happiness");
+            
+            var dataset = [
+                {label: 'Very happy', count: data.very_happy},
+                {label: 'Rather happy', count: data.rather_happy},
+                {label: 'Not very happy', count: data.not_very_happy},
+                {label: 'Not at all happy', count: data.not_at_all_happy},
+                {label: 'HT/RU', count: data.htru},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+            
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)          
+            .attr('fill', function(d, i) {
+              return color(d.data.label);
+            })
+
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -4 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)
+            .style('fill', color)
+            .style('stroke', color);
+
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+        });                                                         
+      })(window.d3);
+        
+		
+        //Future_changes_Greater_respect_for_authority
+        (function(d3) {
+        'use strict';
+			var width = 180;
+          	var height = 180;
+          	var radius = Math.min(width, height) / 2;
+          	var donutWidth = 40;
+          	var legendRectSize = 8;
+          	var legendSpacing = 2;
+          	var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+			
+			var svg = d3.select('#chart2')
+          	  .append('svg')
+          	  .attr('width', width)
+          	  .attr('height', height)
+          	  .append('g')
+          	  .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+			var arc = d3.arc()
+          	  .innerRadius(radius - donutWidth)
+          	  .outerRadius(radius);
+
+        	var pie = d3.pie()
+          	  .value(function(d) { return d.count; })
+          	  .sort(null);
+          
+        d3.csv(selected_wave + "/Future_changes_Greater_respect_for_authority.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+			point.country = d.Country;
+            point.good_thing = +d["Good thing"];
+            point.bad_thing = +d["Bad thing"];
+            point.dont_mind= +d["Dont mind"];
+            point.inapplicable = +d["Inapplicable"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country); 
+                }
+            }
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart2").html("No data available");
+            }
+
+            var title = document.getElementById("title2");
+            title.append("Respect for authority");// 2014");
+           
+            var dataset = [
+                {label: 'Good thing', count: data.good_thing},
+                {label: 'Bad thing', count: data.bad_thing},
+                {label: 'Dont mind', count: data.dont_mind},
+                {label: 'Inapplicable', count: data.inapplicable},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+            
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)          
+            .attr('fill', function(d, i) {
+              return color(d.data.label);
+            })         
+
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -4 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)
+            .style('fill', color)
+            .style('stroke', color);
+
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+
+        });                                                         
+
+      })(window.d3);
+    
+        
+        //How_proud_of_nationality
+        (function(d3) {
+        'use strict';      
+        
+			var width = 180;
+			var height = 180;
+			var radius = Math.min(width, height) / 2;
+			var donutWidth = 40;
+			var legendRectSize = 8;
+			var legendSpacing = 2;
+
+			var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+			var svg = d3.select('#chart3')
+			  .append('svg')
+			  .attr('width', width)
+			  .attr('height', height)
+			  .append('g')
+			  .attr('transform', 'translate(' + (width / 2) +
+				',' + (height / 2) + ')');
+
+			var arc = d3.arc()
+			  .innerRadius(radius - donutWidth)
+			  .outerRadius(radius);
+
+			var pie = d3.pie()
+			  .value(function(d) { return d.count; })
+			  .sort(null);
+          d3.csv(selected_wave + "/How_proud_of_nationality.csv", function(d) {
+            // strip out relevant fields
+			var point = {};
+            point.country = d.Country;
+            point.very_proud = +d["Very proud"];
+            point.quite_proud = +d["Quite proud"];
+            point.not_at_all_proud = +d["Not at all proud"];
+            point.i_am_not = +d["I am not [nationality]"];
+            point.ruht = +d["RU/HT"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country);   
+                }
+            }
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart3").html("No data available");
+            }
+
+            var title = document.getElementById("title3");
+            title.append("Pride in nationality");
+           
+            var dataset = [
+                {label: 'Very proud', count: data.very_proud},
+                {label: 'Quite proud', count: data.quite_proud},
+                {label: 'Not at all proud', count: data.not_at_all_proud},
+                {label: 'I am not [nationality]', count: data.i_am_not},
+                {label: 'RU/HT', count: data.ruht},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+            
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)          
+            .attr('fill', function(d, i) {
+              return color(d.data.label);
+            })
+
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -4 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)
+            .style('fill', color)
+            .style('stroke', color);
+
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+        });                                                         
+      })(window.d3);
+        
+        //Most_people_can_be_trusted
+        (function(d3) {
+        'use strict';
+          
+			var width = 180;
+			var height = 180;
+			var radius = Math.min(width, height) / 2;
+			var donutWidth = 40;
+			var legendRectSize = 8;
+			var legendSpacing = 2;
+
+			var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+			var svg = d3.select('#chart4')
+			  .append('svg')
+			  .attr('width', width)
+			  .attr('height', height)
+			  .append('g')
+			  .attr('transform', 'translate(' + (width / 2) +
+				',' + (height / 2) + ')');
+
+			var arc = d3.arc()
+			  .innerRadius(radius - donutWidth)
+			  .outerRadius(radius);
+
+			var pie = d3.pie()
+			  .value(function(d) { return d.count; })
+			  .sort(null);
+         
+		d3.csv(selected_wave + "/Most_people_can_be_trusted.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.most_people = +d["Most people can be trusted"];
+            point.very_careful = +d["Need to be very careful"];
+            point.ruht = +d["RU/HT"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country); 
+                }
+            }
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart4").html("No data available");
+            }
+
+            var title = document.getElementById("title4");
+            title.append("People can be trusted");
+           
+            var dataset = [
+                {label: 'Most people', count: data.most_people},
+                {label: 'Need to be careful', count: data.very_careful},
+                {label: 'RU/HT', count: data.ruht},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+            
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)          
+            .attr('fill', function(d, i) {
+              return color(d.data.label);
+            })
+
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -4 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)
+            .style('fill', color)
+            .style('stroke', color);
+
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+
+        });                                                      
+      })(window.d3);
+        
+        
+        //Most_people_can_be_trusted
+        (function(d3) {
+        'use strict';
+
+			var width = 180;
+			var height = 180;
+			var radius = Math.min(width, height) / 2;
+			var donutWidth = 40;
+			var legendRectSize = 8;
+			var legendSpacing = 2;
+
+			var color = d3.scaleOrdinal(d3.schemeCategory20b);
+
+			var svg = d3.select('#chart5')
+			  .append('svg')
+			  .attr('width', width)
+			  .attr('height', height)
+			  .append('g')
+			  .attr('transform', 'translate(' + (width / 2) +
+				',' + (height / 2) + ')');
+
+			var arc = d3.arc()
+			  .innerRadius(radius - donutWidth)
+			  .outerRadius(radius);
+
+			var pie = d3.pie()
+			  .value(function(d) { return d.count; })
+			  .sort(null);
+
+
+    
+        d3.csv(selected_wave + "/Political_action_Signing_a_petition.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.have_done = +d["Have done"];
+            point.might_do = +d["Might do"];
+            point.wouldnt_do = +d["Would never do"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country);   
+                }
+            }
+            
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart5").html("No data available");
+            }
+
+            var title = document.getElementById("title5");
+            title.append("Willingness to sign a petition");        
+            
+            var dataset = [
+                {label: 'Have done', count: data.have_done},
+                {label: 'Might do', count: data.might_do},
+                {label: "Wouldn't do", count: data.wouldnt_do},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+            
+          var path = svg.selectAll('path')
+            .data(pie(dataset))
+            .enter()
+            .append('path')
+            .attr('d', arc)          
+            .attr('fill', function(d, i) {
+              return color(d.data.label);
+            })
+
+          var legend = svg.selectAll('.legend')
+            .data(color.domain())
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', function(d, i) {
+              var height = legendRectSize + legendSpacing;
+              var offset =  height * color.domain().length / 2;
+              var horz = -4 * legendRectSize;
+              var vert = i * height - offset;
+              return 'translate(' + horz + ',' + vert + ')';
+            });
+
+          legend.append('rect')
+            .attr('width', legendRectSize)
+            .attr('height', legendRectSize)
+            .style('fill', color)
+            .style('stroke', color);
+
+          legend.append('text')
+            .attr('x', legendRectSize + legendSpacing)
+            .attr('y', legendRectSize - legendSpacing)
+            .text(function(d) { return d; });
+
+        });                                                         
+      })(window.d3);
+        
+	//How_important_is_God_in_your_life
+     (function(d3) {
+        'use strict';
+		 var margin = {top: 20, right: 20, bottom: 30, left: 40},
+			 width = 960*0.75 - margin.left - margin.right,
+        	 height = 500*0.75 - margin.top - margin.bottom;
+
+		// set the ranges
+		var x = d3.scaleBand()
+			.range([0, width])
+			.padding(0.1);
+		var y = d3.scaleLinear()
+			.range([height, 0]);
+
+		// append the svg object to the body of the page
+		// append a 'group' element to 'svg'
+		// moves the 'group' element to the top left margin
+		var svg = d3.select("#chart6").append("svg")
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+		  .append("g")
+			.attr("transform", 
+				  "translate(" + margin.left + "," + margin.top + ")");
+
+    // get the data
+     d3.csv(selected_wave + "/How_important_is_God_in_your_life.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.not_important = +d["Not at all important"];
+            point._2 = +d["2"];
+            point._3 = +d["3"];
+            point._4 = +d["4"];
+            point._5 = +d["5"];
+            point._6 = +d["6"];
+            point._7 = +d["7"];
+            point._8 = +d["8"];
+            point._9 = +d["9"];
+            point.very_important = +d["Very important"];
+            point.ruht = +d["RU/HT"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country);  
+                }
+            }
+            
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart6").html("No data available");
+            }
+            
+            var title = document.getElementById("title6");
+            title.append("Importance of god");
+            
+            var dataset = [
+                {label: 'Not at all Important', count: data.not_important},
+                {label: '2', count: data._2},
+                {label: '3', count: data._3},
+                {label: '4', count: data._4},
+                {label: '5', count: data._5},
+                {label: '6', count: data._6},
+                {label: '7', count: data._7},
+                {label: '8', count: data._8},
+                {label: '9', count: data._9},
+                {label: 'Very important', count: data.very_important},
+                {label: 'RU/HT', count: data.ruht},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+
+      // format the data
+      dataset.forEach(function(d) {
+        d.count = +d.count;
+      });
+
+      // Scale the range of the data in the domains
+      x.domain(dataset.map(function(d) { return d.label; }));
+      y.domain([0, 100]);
+
+      // append the rectangles for the bar chart
+      svg.selectAll(".bar")
+          .data(dataset)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", function(d) { return x(d.label); })
+          .attr("width", x.bandwidth())
+          .attr("y", function(d) { return y(d.count); })
+          .attr("height", function(d) { return height - y(d.count); });
+
+      // add the x Axis
+      svg.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x));
+
+      // add the y Axis
+      svg.append("g")
+          .call(d3.axisLeft(y));
+         
+         });
+         
+    })(window.d3);
+		
+        //Justifiable_Abortion
+       (function(d3) {
+       'use strict';
+         
+         
+		var margin = {top: 20, right: 20, bottom: 30, left: 40},
+			width = 960*0.75 - margin.left - margin.right,
+			height = 500*0.75 - margin.top - margin.bottom;
+
+		// set the ranges
+		var x = d3.scaleBand()
+				  .range([0, width])
+				  .padding(0.1);
+		var y = d3.scaleLinear()
+				  .range([height, 0]);
+
+		// append the svg object to the body of the page
+		// append a 'group' element to 'svg'
+		// moves the 'group' element to the top left margin
+		var svg = d3.select("#chart7").append("svg")
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+		  .append("g")
+			.attr("transform", 
+				  "translate(" + margin.left + "," + margin.top + ")");
+
+     // get the data
+     d3.csv(selected_wave + "/Justifiable_Abortion.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.never_justifiable = +d["Never justifiable"];
+            point._2 = +d["2"];
+            point._3 = +d["3"];
+            point._4 = +d["4"];
+            point._5 = +d["5"];
+            point._6 = +d["6"];
+            point._7 = +d["7"];
+            point._8 = +d["8"];
+            point._9 = +d["9"];
+            point.very_important = +d["Always justifiable"];
+            point.ruht = +d["RU/HT"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country); 
+                }
+            }
+            
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart7").html("No data available");
+            }
+            
+            var title = document.getElementById("title7");
+            title.append("Stance on abortion");
+           
+            
+            var dataset = [
+                {label: 'Never justifiable', count: data.never_justifiable},
+                {label: '2', count: data._2},
+                {label: '3', count: data._3},
+                {label: '4', count: data._4},
+                {label: '5', count: data._5},
+                {label: '6', count: data._6},
+                {label: '7', count: data._7},
+                {label: '8', count: data._8},
+                {label: '9', count: data._9},
+                {label: 'Always justifiable', count: data.always_justifiable},
+                {label: 'RU/HT', count: data.ruht},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+
+      // format the data
+      dataset.forEach(function(d) {
+        d.count = +d.count;
+      });
+
+      // Scale the range of the data in the domains
+      x.domain(dataset.map(function(d) { return d.label; }));
+      y.domain([0, 100]);
+
+      // append the rectangles for the bar chart
+      svg.selectAll(".bar")
+          .data(dataset)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", function(d) { return x(d.label); })
+          .attr("width", x.bandwidth())
+          .attr("y", function(d) { return y(d.count); })
+          .attr("height", function(d) { return height - y(d.count); });
+
+      // add the x Axis
+      svg.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x));
+
+      // add the y Axis
+      svg.append("g")
+          .call(d3.axisLeft(y));
+	 	});
+	})(window.d3);
+        
+    
+	//Justifiable_Homosexuality
+    (function(d3) {
+    'use strict';
+         
+        
+		var margin = {top: 20, right: 20, bottom: 30, left: 40},
+			width = 960*0.75 - margin.left - margin.right,
+			height = 500*0.75 - margin.top - margin.bottom;
+
+		// set the ranges
+		var x = d3.scaleBand()
+				  .range([0, width])
+				  .padding(0.1);
+		var y = d3.scaleLinear()
+				  .range([height, 0]);
+
+		// append the svg object to the body of the page
+		// append a 'group' element to 'svg'
+		// moves the 'group' element to the top left margin
+		var svg = d3.select("#chart8").append("svg")
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+		  .append("g")
+			.attr("transform", 
+				  "translate(" + margin.left + "," + margin.top + ")");
+
+    // get the data
+     d3.csv(selected_wave + "/Justifiable_Homosexuality.csv", function(d) {
+            // strip out relevant fields
+            var point = {};
+            point.country = d.Country;
+            point.never_justifiable = +d["Never justifiable"];
+            point._2 = +d["2"];
+            point._3 = +d["3"];
+            point._4 = +d["4"];
+            point._5 = +d["5"];
+            point._6 = +d["6"];
+            point._7 = +d["7"];
+            point._8 = +d["8"];
+            point._9 = +d["9"];
+            point.very_important = +d["Always justifiable"];
+            point.ruht = +d["RU/HT"];
+            point.no_answer = +d["No answer"];
+            point.dont_know = +d["Dont know"];
+            return point;
+        }, function(error, data) {
+
+            var noCountry =  [];
+            for (var i=0; i<data.length; i++){
+                if(data[i].country == selected_country){
+                    data = data[i]; //what country do you want to show?
+                    noCountry = [];
+                }else{
+                    noCountry.push(data[i].country);  
+                }
+            }
+            
+            if(noCountry.length == data.length){
+                //console.log("No data")
+                d3.select("#chart8").html("No data available");
+            }
+
+            var title = document.getElementById("title8");
+            title.append("Stance on homosexuality");
+            
+            var dataset = [
+                {label: 'Never justifiable', count: data.never_justifiable},
+                {label: '2', count: data._2},
+                {label: '3', count: data._3},
+                {label: '4', count: data._4},
+                {label: '5', count: data._5},
+                {label: '6', count: data._6},
+                {label: '7', count: data._7},
+                {label: '8', count: data._8},
+                {label: '9', count: data._9},
+                {label: 'Always justifiable', count: data.always_justifiable},
+                {label: 'RU/HT', count: data.ruht},
+                {label: 'No answer', count: data.no_answer},
+                {label: 'Dont know', count: data.dont_know}
+                
+            ];
+
+      // format the data
+      dataset.forEach(function(d) {
+        d.count = +d.count;
+      });
+
+      // Scale the range of the data in the domains
+      x.domain(dataset.map(function(d) { return d.label; }));
+      y.domain([0, 100]);
+
+      // append the rectangles for the bar chart
+      svg.selectAll(".bar")
+          .data(dataset)
+        .enter().append("rect")
+          .attr("class", "bar")
+          .attr("x", function(d) { return x(d.label); })
+          .attr("width", x.bandwidth())
+          .attr("y", function(d) { return y(d.count); })
+          .attr("height", function(d) { return height - y(d.count); });
+
+      // add the x Axis
+      svg.append("g")
+          .attr("transform", "translate(0," + height + ")")
+          .call(d3.axisBottom(x));
+
+      // add the y Axis
+      svg.append("g")
+          .call(d3.axisLeft(y));
+	 });
+  	})(window.d3);
+	}
+    </script>
+  </body>
+</html>
